@@ -77,3 +77,64 @@ def listar_veiculos():
         conn.close()
 
     return veiculos
+
+
+@router.get("/veiculos/placa/{placa}", response_model=VeiculoResponse)
+def buscar_veiculo_por_placa(placa: str):
+    conn = get_connection()
+    try:
+        cursor = conn.cursor(row_factory=dict_row)
+        try:
+            cursor.execute(
+                """
+                SELECT id, marca, modelo, ano, placa, valor_diaria, status
+                FROM veiculos
+                WHERE placa = %s
+                """,
+                (placa,),
+            )
+            veiculo = cursor.fetchone()
+        finally:
+            cursor.close()
+    finally:
+        conn.close()
+
+    if veiculo is None:
+        raise HTTPException(status_code=404, detail="Veículo não encontrado.")
+
+    return veiculo
+
+
+@router.get("/veiculos/{id}", response_model=VeiculoResponse)
+def buscar_veiculo_por_id(id: int):
+    conn = get_connection()
+    try:
+        cursor = conn.cursor(row_factory=dict_row)
+        try:
+            cursor.execute(
+                """
+                SELECT id, marca, modelo, ano, placa, valor_diaria, status
+                FROM veiculos
+                WHERE id = %s
+                """,
+                (id,),
+            )
+            veiculo = cursor.fetchone()
+        finally:
+            cursor.close()
+    finally:
+        conn.close()
+
+    if veiculo is None:
+        raise HTTPException(status_code=404, detail="Veículo não encontrado.")
+
+    return veiculo
+
+
+
+
+
+
+
+
+
