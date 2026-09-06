@@ -25,3 +25,22 @@ class VeiculoResponse(BaseModel):
     placa: str
     valor_diaria: float
     status: str
+
+
+class ClienteCreate(BaseModel):
+    nome: str = Field(..., min_length=1)
+    cpf: str = Field(..., min_length=1)
+    email: str = Field(..., min_length=1)
+
+
+class ClienteResponse(BaseModel):
+    id: int
+    nome: str
+    cpf: str
+    email: str
+
+
+
+
+
+    
