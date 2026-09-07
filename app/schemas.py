@@ -1,3 +1,6 @@
+from datetime import date
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -38,6 +41,28 @@ class ClienteResponse(BaseModel):
     nome: str
     cpf: str
     email: str
+
+
+class AluguelCreate(BaseModel):
+    cliente_id: int
+    veiculo_id: int
+    data_inicio: date
+    data_fim: date
+
+
+class AluguelResponse(BaseModel):
+    id: int
+    cliente_id: int
+    veiculo_id: int
+    data_inicio: date
+    data_fim: date
+    data_devolucao: Optional[date] = None
+    status: str
+
+
+
+
+
 
 
 

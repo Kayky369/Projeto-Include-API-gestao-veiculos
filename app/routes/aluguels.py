@@ -1,0 +1,188 @@
+from fastapi import APIRouter, HTTPException
+import psycopg
+from psycopg.rows import dict_row
+
+from app.database import get_connection
+from app.schemas import AluguelCreate, AluguelResponse
+
+router = APIRouter()
+
+
+@router.post("/aluguels", response_model=AluguelResponse, status_code=201)
+def criar_aluguel(aluguel: AluguelCreate):
+    conn = get_connection()
+    try:
+        cursor = conn.cursor(row_factory=dict_row)
+        try:
+            # Verifica se o cliente existe
+            cursor.execute(
+                "SELECT id FROM clientes WHERE id = %s",
+                (aluguel.cliente_id,),
+            )
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Cliente não encontrado.")
+
+            # Verifica se o veículo existe e trava a linha (FOR UPDATE) para
+            # evitar que dois aluguéis ativos sejam criados ao mesmo tempo
+            # para o mesmo veículo em requisições concorrentes
+            cursor.execute(
+                "SELECT status FROM veiculos WHERE id = %s FOR UPDATE",
+                (aluguel.veiculo_id,),
+            )
+            veiculo = cursor.fetchone()
+            if veiculo is None:
+                raise HTTPException(status_code=404, detail="Veículo não encontrado.")
+
+            if veiculo["status"] != "DISPONIVEL":
+                raise HTTPException(
+                    status_code=400,
+                    detail="Veículo não está disponível para aluguel.",
+                )
+
+            if aluguel.data_fim < aluguel.data_inicio:
+                raise HTTPException(
+                    status_code=400,
+                    detail="A data de fim não pode ser anterior à data de início.",
+                )
+
+            # Cria o aluguel com status ATIVO e data_devolucao nula (valores padrão do banco)
+            cursor.execute(
+                """
+                INSERT INTO aluguels (cliente_id, veiculo_id, data_inicio, data_fim)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id, cliente_id, veiculo_id, data_inicio, data_fim, data_devolucao, status
+                """,
+                (
+                    aluguel.cliente_id,
+                    aluguel.veiculo_id,
+                    aluguel.data_inicio,
+                    aluguel.data_fim,
+                ),
+            )
+            novo_aluguel = cursor.fetchone()
+
+            # Marca o veículo como ALUGADO, na mesma transação do INSERT acima
+            cursor.execute(
+                "UPDATE veiculos SET status = 'ALUGADO' WHERE id = %s",
+                (aluguel.veiculo_id,),
+            )
+
+            conn.commit()
+        except psycopg.errors.CheckViolation:
+            conn.rollback()
+            raise HTTPException(
+                status_code=400,
+                detail="Dados inválidos: verifique as datas informadas.",
+            )
+        finally:
+            cursor.close()
+    finally:
+        conn.close()
+
+    return novo_aluguel
+
+
+@router.get("/aluguels", response_model=list[AluguelResponse])
+def listar_aluguels():
+    conn = get_connection()
+    try:
+        cursor = conn.cursor(row_factory=dict_row)
+        try:
+            cursor.execute(
+                """
+                SELECT id, cliente_id, veiculo_id, data_inicio, data_fim, data_devolucao, status
+                FROM aluguels
+                ORDER BY id ASC
+                """
+            )
+            aluguels = cursor.fetchall()
+        finally:
+            cursor.close()
+    finally:
+        conn.close()
+
+    return aluguels
+
+
+@router.get("/aluguels/{id}", response_model=AluguelResponse)
+def buscar_aluguel_por_id(id: int):
+    conn = get_connection()
+    try:
+        cursor = conn.cursor(row_factory=dict_row)
+        try:
+            cursor.execute(
+                """
+                SELECT id, cliente_id, veiculo_id, data_inicio, data_fim, data_devolucao, status
+                FROM aluguels
+                WHERE id = %s
+                """,
+                (id,),
+            )
+            aluguel = cursor.fetchone()
+        finally:
+            cursor.close()
+    finally:
+        conn.close()
+
+    if aluguel is None:
+        raise HTTPException(status_code=404, detail="Aluguel não encontrado.")
+
+    return aluguel
+
+
+@router.post("/aluguels/{id}/devolucao", response_model=AluguelResponse, status_code=200)
+def registrar_devolucao(id: int):
+    conn = get_connection()
+    try:
+        cursor = conn.cursor(row_factory=dict_row)
+        try:
+            # Busca o aluguel e trava a linha (FOR UPDATE) para evitar
+            # que a mesma devolução seja processada duas vezes simultaneamente
+            cursor.execute(
+                "SELECT id, veiculo_id, status FROM aluguels WHERE id = %s FOR UPDATE",
+                (id,),
+            )
+            aluguel = cursor.fetchone()
+            if aluguel is None:
+                raise HTTPException(status_code=404, detail="Aluguel não encontrado.")
+
+            if aluguel["status"] != "ATIVO":
+                raise HTTPException(
+                    status_code=400,
+                    detail="Este aluguel já está encerrado.",
+                )
+
+            # Encerra o aluguel e registra a data de devolução com a data atual do servidor
+            cursor.execute(
+                """
+                UPDATE aluguels
+                SET status = 'ENCERRADO', data_devolucao = CURRENT_DATE
+                WHERE id = %s
+                RETURNING id, cliente_id, veiculo_id, data_inicio, data_fim, data_devolucao, status
+                """,
+                (id,),
+            )
+            aluguel_atualizado = cursor.fetchone()
+
+            # Libera o veículo para novos aluguéis, na mesma transação
+            cursor.execute(
+                "UPDATE veiculos SET status = 'DISPONIVEL' WHERE id = %s",
+                (aluguel["veiculo_id"],),
+            )
+
+            conn.commit()
+        finally:
+            cursor.close()
+    finally:
+        conn.close()
+
+    return aluguel_atualizado
+
+
+
+
+
+
+
+
+
