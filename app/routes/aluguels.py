@@ -31,7 +31,7 @@ def criar_aluguel(aluguel: AluguelCreate):
             # evitar que dois aluguéis ativos sejam criados ao mesmo tempo
             # para o mesmo veículo em requisições concorrentes
             cursor.execute(
-                "SELECT status FROM veiculos WHERE id = %s FOR UPDATE",
+                "SELECT status, valor_diaria FROM veiculos WHERE id = %s FOR UPDATE",
                 (aluguel.veiculo_id,),
             )
             veiculo = cursor.fetchone()
@@ -72,6 +72,11 @@ def criar_aluguel(aluguel: AluguelCreate):
                 (aluguel.veiculo_id,),
             )
 
+            # Calcula o valor total (dias x valor_diaria) usando Decimal,
+            # evitando imprecisões de ponto flutuante em valores monetários
+            dias = (aluguel.data_fim - aluguel.data_inicio).days
+            novo_aluguel["valor_total"] = veiculo["valor_diaria"] * dias
+
             conn.commit()
         except psycopg.errors.CheckViolation:
             conn.rollback()
@@ -99,9 +104,13 @@ def listar_aluguels():
         try:
             cursor.execute(
                 """
-                SELECT id, cliente_id, veiculo_id, data_inicio, data_fim, data_devolucao, status
-                FROM aluguels
-                ORDER BY id ASC
+                SELECT
+                    a.id, a.cliente_id, a.veiculo_id, a.data_inicio, a.data_fim,
+                    a.data_devolucao, a.status,
+                    (a.data_fim - a.data_inicio) * v.valor_diaria AS valor_total
+                FROM aluguels a
+                JOIN veiculos v ON v.id = a.veiculo_id
+                ORDER BY a.id ASC
                 """
             )
             aluguels = cursor.fetchall()
@@ -125,9 +134,13 @@ def buscar_aluguel_por_id(id: int):
         try:
             cursor.execute(
                 """
-                SELECT id, cliente_id, veiculo_id, data_inicio, data_fim, data_devolucao, status
-                FROM aluguels
-                WHERE id = %s
+                SELECT
+                    a.id, a.cliente_id, a.veiculo_id, a.data_inicio, a.data_fim,
+                    a.data_devolucao, a.status,
+                    (a.data_fim - a.data_inicio) * v.valor_diaria AS valor_total
+                FROM aluguels a
+                JOIN veiculos v ON v.id = a.veiculo_id
+                WHERE a.id = %s
                 """,
                 (id,),
             )

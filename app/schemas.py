@@ -1,7 +1,8 @@
 from datetime import date
+from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 
 
 class VeiculoCreate(BaseModel):
@@ -58,6 +59,17 @@ class AluguelResponse(BaseModel):
     data_fim: date
     data_devolucao: Optional[date] = None
     status: str
+    valor_total: Optional[Decimal] = None
+
+    @field_serializer("valor_total")
+    def serializar_valor_total(self, valor: Optional[Decimal]) -> Optional[float]:
+        # O cálculo interno usa Decimal (evita erro de arredondamento);
+        # aqui convertemos só para exibição, já com o valor final já calculado.
+        return float(valor) if valor is not None else None
+
+
+    
+
 
 
 
