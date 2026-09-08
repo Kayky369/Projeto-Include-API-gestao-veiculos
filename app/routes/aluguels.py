@@ -5,10 +5,15 @@ from psycopg.rows import dict_row
 from app.database import get_connection
 from app.schemas import AluguelCreate, AluguelResponse
 
-router = APIRouter()
+router = APIRouter(tags=["Aluguéis"])
 
 
-@router.post("/aluguels", response_model=AluguelResponse, status_code=201)
+@router.post(
+    "/aluguels",
+    response_model=AluguelResponse,
+    status_code=201,
+    summary="Criar um novo aluguel",
+)
 def criar_aluguel(aluguel: AluguelCreate):
     conn = get_connection()
     try:
@@ -82,7 +87,11 @@ def criar_aluguel(aluguel: AluguelCreate):
     return novo_aluguel
 
 
-@router.get("/aluguels", response_model=list[AluguelResponse])
+@router.get(
+    "/aluguels",
+    response_model=list[AluguelResponse],
+    summary="Listar todos os aluguéis",
+)
 def listar_aluguels():
     conn = get_connection()
     try:
@@ -104,7 +113,11 @@ def listar_aluguels():
     return aluguels
 
 
-@router.get("/aluguels/{id}", response_model=AluguelResponse)
+@router.get(
+    "/aluguels/{id}",
+    response_model=AluguelResponse,
+    summary="Buscar aluguel por ID",
+)
 def buscar_aluguel_por_id(id: int):
     conn = get_connection()
     try:
@@ -130,7 +143,12 @@ def buscar_aluguel_por_id(id: int):
     return aluguel
 
 
-@router.post("/aluguels/{id}/devolucao", response_model=AluguelResponse, status_code=200)
+@router.post(
+    "/aluguels/{id}/devolucao",
+    response_model=AluguelResponse,
+    status_code=200,
+    summary="Registrar a devolução de um aluguel",
+)
 def registrar_devolucao(id: int):
     conn = get_connection()
     try:
@@ -177,6 +195,12 @@ def registrar_devolucao(id: int):
         conn.close()
 
     return aluguel_atualizado
+
+
+
+
+
+
 
 
 

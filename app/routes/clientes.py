@@ -5,10 +5,15 @@ from psycopg.rows import dict_row
 from app.database import get_connection
 from app.schemas import ClienteCreate, ClienteResponse
 
-router = APIRouter()
+router = APIRouter(tags=["Clientes"])
 
 
-@router.post("/clientes", response_model=ClienteResponse, status_code=201)
+@router.post(
+    "/clientes",
+    response_model=ClienteResponse,
+    status_code=201,
+    summary="Cadastrar um novo cliente",
+)
 def criar_cliente(cliente: ClienteCreate):
     conn = get_connection()
     try:
@@ -50,7 +55,11 @@ def criar_cliente(cliente: ClienteCreate):
     return novo_cliente
 
 
-@router.get("/clientes", response_model=list[ClienteResponse])
+@router.get(
+    "/clientes",
+    response_model=list[ClienteResponse],
+    summary="Listar todos os clientes",
+)
 def listar_clientes():
     conn = get_connection()
     try:
@@ -72,7 +81,11 @@ def listar_clientes():
     return clientes
 
 
-@router.get("/clientes/{id}", response_model=ClienteResponse)
+@router.get(
+    "/clientes/{id}",
+    response_model=ClienteResponse,
+    summary="Buscar cliente por ID",
+)
 def buscar_cliente_por_id(id: int):
     conn = get_connection()
     try:
@@ -96,6 +109,10 @@ def buscar_cliente_por_id(id: int):
         raise HTTPException(status_code=404, detail="Cliente não encontrado.")
 
     return cliente
+
+
+
+
 
 
 

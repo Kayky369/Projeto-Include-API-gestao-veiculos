@@ -5,10 +5,15 @@ from psycopg.rows import dict_row
 from app.database import get_connection
 from app.schemas import VeiculoCreate, VeiculoUpdate, VeiculoResponse
 
-router = APIRouter()
+router = APIRouter(tags=["Veículos"])
 
 
-@router.post("/veiculos", response_model=VeiculoResponse, status_code=201)
+@router.post(
+    "/veiculos",
+    response_model=VeiculoResponse,
+    status_code=201,
+    summary="Cadastrar um novo veículo",
+)
 def criar_veiculo(veiculo: VeiculoCreate):
     conn = get_connection()
     try:
@@ -46,6 +51,13 @@ def criar_veiculo(veiculo: VeiculoCreate):
                 status_code=400,
                 detail="Já existe um veículo cadastrado com essa placa.",
             )
+        except psycopg.errors.CheckViolation:
+            # Cobre o caso de "ano" fora do intervalo aceito pelo banco (1900-2100)
+            conn.rollback()
+            raise HTTPException(
+                status_code=400,
+                detail="Dados inválidos: verifique o ano informado (deve estar entre 1900 e 2100).",
+            )
         finally:
             cursor.close()
     finally:
@@ -54,7 +66,11 @@ def criar_veiculo(veiculo: VeiculoCreate):
     return novo_veiculo
 
 
-@router.get("/veiculos", response_model=list[VeiculoResponse])
+@router.get(
+    "/veiculos",
+    response_model=list[VeiculoResponse],
+    summary="Listar todos os veículos",
+)
 def listar_veiculos():
     conn = get_connection()
     try:
@@ -76,7 +92,11 @@ def listar_veiculos():
     return veiculos
 
 
-@router.get("/veiculos/placa/{placa}", response_model=VeiculoResponse)
+@router.get(
+    "/veiculos/placa/{placa}",
+    response_model=VeiculoResponse,
+    summary="Buscar veículo pela placa",
+)
 def buscar_veiculo_por_placa(placa: str):
     conn = get_connection()
     try:
@@ -102,7 +122,11 @@ def buscar_veiculo_por_placa(placa: str):
     return veiculo
 
 
-@router.get("/veiculos/{id}", response_model=VeiculoResponse)
+@router.get(
+    "/veiculos/{id}",
+    response_model=VeiculoResponse,
+    summary="Buscar veículo por ID",
+)
 def buscar_veiculo_por_id(id: int):
     conn = get_connection()
     try:
@@ -128,7 +152,11 @@ def buscar_veiculo_por_id(id: int):
     return veiculo
 
 
-@router.put("/veiculos/{id}", response_model=VeiculoResponse)
+@router.put(
+    "/veiculos/{id}",
+    response_model=VeiculoResponse,
+    summary="Atualizar dados de um veículo",
+)
 def atualizar_veiculo(id: int, veiculo: VeiculoUpdate):
     conn = get_connection()
     try:
@@ -190,7 +218,11 @@ def atualizar_veiculo(id: int, veiculo: VeiculoUpdate):
     return veiculo_atualizado
 
 
-@router.delete("/veiculos/{id}", status_code=204)
+@router.delete(
+    "/veiculos/{id}",
+    status_code=204,
+    summary="Excluir um veículo (sem histórico de aluguel)",
+)
 def excluir_veiculo(id: int):
     conn = get_connection()
     try:
@@ -227,6 +259,8 @@ def excluir_veiculo(id: int):
         conn.close()
 
     return None
+
+
 
 
 

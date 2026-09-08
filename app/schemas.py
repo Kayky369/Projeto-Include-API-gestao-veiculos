@@ -5,18 +5,18 @@ from pydantic import BaseModel, Field
 
 
 class VeiculoCreate(BaseModel):
-    marca: str = Field(..., min_length=1)
-    modelo: str = Field(..., min_length=1)
+    marca: str = Field(..., min_length=1, max_length=50)
+    modelo: str = Field(..., min_length=1, max_length=50)
     ano: int
-    placa: str = Field(..., min_length=1)
+    placa: str = Field(..., min_length=1, max_length=10)
     valor_diaria: float = Field(..., gt=0)
 
 
 class VeiculoUpdate(BaseModel):
-    marca: str = Field(..., min_length=1)
-    modelo: str = Field(..., min_length=1)
+    marca: str = Field(..., min_length=1, max_length=50)
+    modelo: str = Field(..., min_length=1, max_length=50)
     ano: int
-    placa: str = Field(..., min_length=1)
+    placa: str = Field(..., min_length=1, max_length=10)
     valor_diaria: float = Field(..., gt=0)
 
 
@@ -31,9 +31,9 @@ class VeiculoResponse(BaseModel):
 
 
 class ClienteCreate(BaseModel):
-    nome: str = Field(..., min_length=1)
-    cpf: str = Field(..., min_length=1)
-    email: str = Field(..., min_length=1)
+    nome: str = Field(..., min_length=1, max_length=150)
+    cpf: str = Field(..., min_length=1, max_length=14)
+    email: str = Field(..., min_length=1, max_length=150)
 
 
 class ClienteResponse(BaseModel):
@@ -63,9 +63,3 @@ class AluguelResponse(BaseModel):
 
 
 
-
-
-
-
-
-    
