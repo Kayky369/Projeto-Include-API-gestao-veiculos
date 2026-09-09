@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 import psycopg
 from psycopg.rows import dict_row
 
+from app.auth import obter_usuario_atual
 from app.database import get_connection
 from app.schemas import VeiculoCreate, VeiculoUpdate, VeiculoResponse
 
@@ -14,7 +15,7 @@ router = APIRouter(tags=["Veículos"])
     status_code=201,
     summary="Cadastrar um novo veículo",
 )
-def criar_veiculo(veiculo: VeiculoCreate):
+def criar_veiculo(veiculo: VeiculoCreate, usuario_atual: str = Depends(obter_usuario_atual)):
     conn = get_connection()
     try:
         cursor = conn.cursor(row_factory=dict_row)
@@ -60,7 +61,7 @@ def criar_veiculo(veiculo: VeiculoCreate):
             )
         finally:
             cursor.close()
-    finally:
+    finally: 
         conn.close()
 
     return novo_veiculo
@@ -71,7 +72,7 @@ def criar_veiculo(veiculo: VeiculoCreate):
     response_model=list[VeiculoResponse],
     summary="Listar todos os veículos",
 )
-def listar_veiculos():
+def listar_veiculos(): 
     conn = get_connection()
     try:
         cursor = conn.cursor(row_factory=dict_row)
@@ -84,7 +85,7 @@ def listar_veiculos():
                 """
             )
             veiculos = cursor.fetchall()
-        finally:
+        finally: 
             cursor.close()
     finally:
         conn.close()
@@ -96,7 +97,7 @@ def listar_veiculos():
     "/veiculos/placa/{placa}",
     response_model=VeiculoResponse,
     summary="Buscar veículo pela placa",
-)
+) 
 def buscar_veiculo_por_placa(placa: str):
     conn = get_connection()
     try:
@@ -114,7 +115,7 @@ def buscar_veiculo_por_placa(placa: str):
         finally:
             cursor.close()
     finally:
-        conn.close()
+        conn.close() 
 
     if veiculo is None:
         raise HTTPException(status_code=404, detail="Veículo não encontrado.")
@@ -129,7 +130,7 @@ def buscar_veiculo_por_placa(placa: str):
 )
 def buscar_veiculo_por_id(id: int):
     conn = get_connection()
-    try:
+    try: 
         cursor = conn.cursor(row_factory=dict_row)
         try:
             cursor.execute(
@@ -141,7 +142,7 @@ def buscar_veiculo_por_id(id: int):
                 (id,),
             )
             veiculo = cursor.fetchone()
-        finally:
+        finally: 
             cursor.close()
     finally:
         conn.close()
@@ -151,13 +152,13 @@ def buscar_veiculo_por_id(id: int):
 
     return veiculo
 
-
+ 
 @router.put(
     "/veiculos/{id}",
     response_model=VeiculoResponse,
     summary="Atualizar dados de um veículo",
 )
-def atualizar_veiculo(id: int, veiculo: VeiculoUpdate):
+def atualizar_veiculo(id: int, veiculo: VeiculoUpdate, usuario_atual: str = Depends(obter_usuario_atual)):
     conn = get_connection()
     try:
         cursor = conn.cursor(row_factory=dict_row)
@@ -167,18 +168,18 @@ def atualizar_veiculo(id: int, veiculo: VeiculoUpdate):
             if cursor.fetchone() is None:
                 raise HTTPException(status_code=404, detail="Veículo não encontrado.")
 
-            # Verifica se a nova placa já pertence a outro veículo
+            # Verifica se a nova placa ja pertence a outro veiculo
             cursor.execute(
                 "SELECT id FROM veiculos WHERE placa = %s AND id != %s",
                 (veiculo.placa, id),
-            )
+            ) 
             if cursor.fetchone() is not None:
                 raise HTTPException(
                     status_code=400,
                     detail="Já existe outro veículo cadastrado com essa placa.",
                 )
 
-            cursor.execute(
+            cursor.execute( 
                 """
                 UPDATE veiculos
                 SET marca = %s, modelo = %s, ano = %s, placa = %s, valor_diaria = %s
@@ -191,7 +192,7 @@ def atualizar_veiculo(id: int, veiculo: VeiculoUpdate):
                     veiculo.ano,
                     veiculo.placa,
                     veiculo.valor_diaria,
-                    id,
+                    id, 
                 ),
             )
             veiculo_atualizado = cursor.fetchone()
@@ -199,66 +200,70 @@ def atualizar_veiculo(id: int, veiculo: VeiculoUpdate):
         except psycopg.errors.UniqueViolation:
             # Proteção extra contra condição de corrida na verificação de placa duplicada
             conn.rollback()
-            raise HTTPException(
+            raise HTTPException( 
                 status_code=400,
                 detail="Já existe outro veículo cadastrado com essa placa.",
             )
         except psycopg.errors.CheckViolation:
-            # Cobre o caso de "ano" fora do intervalo aceito pelo banco (1900-2100)
+            # Cobre o caso de ano fora do intervalo aceito pelo banco (1900-2100)
             conn.rollback()
-            raise HTTPException(
+            raise HTTPException( 
                 status_code=400,
                 detail="Dados inválidos: verifique o ano informado (deve estar entre 1900 e 2100).",
             )
         finally:
             cursor.close()
     finally:
-        conn.close()
+        conn.close() 
 
     return veiculo_atualizado
 
 
-@router.delete(
+@router.delete( 
     "/veiculos/{id}",
     status_code=204,
     summary="Excluir um veículo (sem histórico de aluguel)",
 )
-def excluir_veiculo(id: int):
+def excluir_veiculo(id: int, usuario_atual: str = Depends(obter_usuario_atual)):
     conn = get_connection()
-    try:
+    try: 
         cursor = conn.cursor(row_factory=dict_row)
         try:
             # Verifica se o veículo existe
-            cursor.execute("SELECT id FROM veiculos WHERE id = %s", (id,))
+            cursor.execute("SELECT id FROM veiculos WHERE id = %s", (id,)) 
             if cursor.fetchone() is None:
                 raise HTTPException(status_code=404, detail="Veículo não encontrado.")
 
-            # Verifica se existe algum aluguel relacionado a esse veículo
-            cursor.execute(
+            # Verifica se existe algum aluguel relacionado com esse veículo
+            cursor.execute( 
                 "SELECT id FROM aluguels WHERE veiculo_id = %s LIMIT 1",
                 (id,),
             )
             if cursor.fetchone() is not None:
-                raise HTTPException(
+                raise HTTPException( 
                     status_code=400,
                     detail="Não é possível excluir o veículo: existe histórico de aluguel associado.",
                 )
 
-            cursor.execute("DELETE FROM veiculos WHERE id = %s", (id,))
+            cursor.execute("DELETE FROM veiculos WHERE id = %s", (id,)) 
             conn.commit()
         except psycopg.errors.ForeignKeyViolation:
-            # Proteção extra contra condição de corrida (aluguel criado entre a checagem e o DELETE)
+            # Proteção extra contra condição de corrida (aluguel criado entre a checagem e o "DELETE")
             conn.rollback()
-            raise HTTPException(
+            raise HTTPException( 
                 status_code=400,
                 detail="Não é possível excluir o veículo: existe histórico de aluguel associado.",
             )
-        finally:
+        finally: 
             cursor.close()
     finally:
-        conn.close()
+        conn.close() 
 
     return None
+
+ 
+
+
 
 
 
